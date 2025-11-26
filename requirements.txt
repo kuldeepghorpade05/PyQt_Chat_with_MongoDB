@@ -1,0 +1,5 @@
+python-socketio[aiohttp]
+aiohttp
+pymongo
+dnspython
+PyQt5
