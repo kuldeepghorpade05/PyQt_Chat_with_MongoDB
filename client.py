@@ -80,10 +80,18 @@ class ChatWindow(QMainWindow):
 
     def start_socket(self):
         try:
-            self.socket.connect('http://localhost:5000')
+            # ---------------- FLEXIBLE CONNECTION ----------------
+            # For local testing:
+            # self.socket.connect('http://localhost:5000')
+            
+            # For cloud deployment on Render:
+            self.socket.connect('https://pyqt-chat-with-mongodb.onrender.com')
+            # ------------------------------------------------------
+
             self.socket.emit('register', {'username': self.username})
         except Exception as e:
             print("Socket connection error:", e)
+
 
     def add_bubble(self, username, text, is_self=False, timestamp=None):
         # Add date separator
