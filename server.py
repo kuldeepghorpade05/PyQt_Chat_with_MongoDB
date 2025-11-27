@@ -1,3 +1,4 @@
+import os
 import asyncio
 import socketio
 from aiohttp import web
@@ -110,4 +111,7 @@ async def broadcast_userlist():
 
 # ----------------- Run -----------------
 if __name__ == '__main__':
-    web.run_app(app, port=5000)
+    PORT = int(os.environ.get("PORT", 5000))  # Render gives PORT, local uses 5000
+    HOST = "0.0.0.0"                          # Needed for cloud hosting
+    web.run_app(app, host=HOST, port=PORT)
+
