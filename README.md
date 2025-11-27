@@ -21,7 +21,7 @@ A real-time chat application built with **PyQt5**, **Python Socket.IO**, and **M
 
 * **Python 3.8+**
 * **python-socketio (aiohttp backend)**
-* **aiohttp**
+* **aiohttp** --> WebSocket
 * **pymongo** (MongoDB driver)
 * **dnspython** (MongoDB Atlas DNS support)
 
