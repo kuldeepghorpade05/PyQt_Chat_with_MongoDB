@@ -3,3 +3,4 @@ aiohttp
 pymongo
 dnspython
 PyQt5
+python-dotenv
