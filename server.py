@@ -4,17 +4,28 @@ import socketio
 from aiohttp import web
 from datetime import datetime, timezone
 from pymongo import MongoClient
+from dotenv import load_dotenv
 
+# ----------------- Load environment variables -----------------
+load_dotenv()
+
+MONGO_URI = os.getenv("MONGODB_URI")
+DB_NAME = os.getenv("MONGODB_DB_NAME")
+
+if not MONGO_URI or not DB_NAME:
+    raise RuntimeError("Missing MONGODB_URI or MONGODB_DB_NAME environment variables")
+
+# ----------------- Socket.IO setup -----------------
 sio = socketio.AsyncServer(cors_allowed_origins='*')
 app = web.Application()
 sio.attach(app)
 
-mongo = MongoClient(
-    "mongodb+srv://kuldeepghorpade05:t1AKIvdPddARgzCp@flask-project-01.owcxazv.mongodb.net/pyqt_chat_db?retryWrites=true&w=majority"
-)
-db = mongo["pyqt_chat_db"]
+# ----------------- MongoDB setup -----------------
+mongo = MongoClient(MONGO_URI)
+db = mongo[DB_NAME]
 messages_coll = db["messages"]
 
+# ----------------- In-memory user tracking -----------------
 users = {}      # sid -> username
 sid_map = {}    # username -> sid
 
@@ -34,6 +45,7 @@ async def connect(sid, environ):
 @sio.event
 async def register(sid, data):
     global color_index
+
     username = data.get('username', f'User_{sid[:5]}')
     users[sid] = username
     sid_map[username] = sid
@@ -45,13 +57,14 @@ async def register(sid, data):
 
     print(f"{username} registered with sid {sid}")
 
-    # Send user list and color mapping to all clients
+    # Broadcast user list and colors
     await broadcast_userlist()
     await sio.emit('user_colors', {'colors': USER_COLORS})
 
-    # Send recent messages
+    # Send recent message history
     recent = list(messages_coll.find().sort('timestamp', -1).limit(100))
     recent.reverse()
+
     history = [
         {
             'username': m.get('username'),
@@ -60,16 +73,17 @@ async def register(sid, data):
             'to': m.get('to')
         } for m in recent
     ]
+
     await sio.emit('history', {'messages': history}, room=sid)
 
 @sio.event
 async def message(sid, data):
     username = users.get(sid, 'Unknown')
     text = data.get('text', '')
+    private_to = data.get('to')
     ts = datetime.now(timezone.utc)
-    private_to = data.get('to', None)
 
-    # Save to DB
+    # Save message to DB
     messages_coll.insert_one({
         'username': username,
         'text': text,
@@ -100,18 +114,17 @@ async def typing(sid, data):
 @sio.event
 async def disconnect(sid):
     username = users.pop(sid, None)
-    sid_map.pop(username, None)
+    if username:
+        sid_map.pop(username, None)
     print(f"Client disconnected: {sid} ({username})")
     await broadcast_userlist()
 
 # ----------------- Helper -----------------
 async def broadcast_userlist():
-    user_list = list(users.values())
-    await sio.emit('user_list', {'users': user_list})
+    await sio.emit('user_list', {'users': list(users.values())})
 
-# ----------------- Run -----------------
+# ----------------- Run app -----------------
 if __name__ == '__main__':
-    PORT = int(os.environ.get("PORT", 5000))  # Render gives PORT, local uses 5000
-    HOST = "0.0.0.0"                          # Needed for cloud hosting
+    PORT = int(os.environ.get("PORT", 5000))
+    HOST = "0.0.0.0"
     web.run_app(app, host=HOST, port=PORT)
-
